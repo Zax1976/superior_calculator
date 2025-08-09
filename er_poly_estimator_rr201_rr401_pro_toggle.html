@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Estimate Rocket Mode — Poly Foam (RR201/RR401) + Pro (Hide/Show)</title>
+  <style>
+    :root{--pad:14px;--radius:14px;}
+    *{box-sizing:border-box;}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0;padding:24px;background:#0f172a;color:#e2e8f0;}
+    h1{font-size:1.35rem;margin:0 0 8px;}
+    h2{font-size:1.05rem;margin:.75rem 0 .25rem;}
+    .card{background:#111827;border:1px solid #1f2937;border-radius:var(--radius);padding:var(--pad);max-width:900px;margin:0 auto;box-shadow:0 10px 24px rgba(0,0,0,.25);}
+    label{display:block;margin:10px 0 4px;font-size:.9rem;color:#cbd5e1;}
+    input, select, button{width:100%;padding:10px 12px;border-radius:12px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;outline:none;}
+    input:focus, select:focus{border-color:#64748b;box-shadow:0 0 0 3px rgba(100,116,139,.25);}
+    .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;}
+    .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+    .row{margin-top:8px;}
+    .note{font-size:.85rem;color:#94a3b8;margin-top:6px;}
+    .result{margin-top:16px;background:#0b1220;border:1px solid #1f2937;border-radius:var(--radius);padding:var(--pad);}
+    .pill{background:#111827;border:1px solid #1f2937;border-radius:999px;padding:10px;text-align:center;}
+    .muted{color:#94a3b8;font-size:.9rem;}
+    .small{font-size:.85rem;}
+    .bar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:10px 0;flex-wrap:wrap;}
+    .btn{cursor:pointer;border:1px solid #334155;background:#0b1220;border-radius:999px;padding:9px 14px;}
+    .btn:hover{border-color:#64748b;}
+    .toggle{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid #334155;border-radius:999px;cursor:pointer;background:#0b1220;}
+    .toggle input{accent-color:#64748b;width:auto;}
+    .tag{font-size:.75rem;border:1px solid #334155;border-radius:999px;padding:2px 8px;color:#cbd5e1;}
+    details{background:#0b1220;border:1px solid #1f2937;border-radius:var(--radius);padding:var(--pad);}
+    details summary{cursor:pointer;list-style:none;}
+    details summary::-webkit-details-marker{display:none;}
+    .hidden{display:none;}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Estimate Rocket–style Poly Foam Estimator <span class="tag">RR201/RR401</span></h1>
+    <div class="note small">Uses ER conversion factors (lb per cubic yard). Sides settled must be 1, 2, or 3 (3 = entire slab).</div>
+
+    <div class="grid row">
+      <div>
+        <label for="len">Length (ft)</label>
+        <input id="len" type="number" min="0" step="0.01" placeholder="e.g., 10" data-testid="calc-length">
+      </div>
+      <div>
+        <label for="wid">Width (ft)</label>
+        <input id="wid" type="number" min="0" step="0.01" placeholder="e.g., 8" data-testid="calc-width">
+      </div>
+    </div>
+
+    <div class="grid row">
+      <div>
+        <label for="depth">Depth / Max lift (inches)</label>
+        <input id="depth" type="number" min="0" step="0.1" placeholder="e.g., 2" data-testid="calc-depth">
+      </div>
+      <div>
+        <label for="sides">Sides settled (1, 2, or 3)</label>
+        <select id="sides" data-testid="calc-sides">
+          <option value="1">1 side</option>
+          <option value="2">2 sides (corner)</option>
+          <option value="3" selected>3 (entire slab)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>Foam + factors</label>
+      <div class="bar" style="justify-content:flex-start;">
+        <label class="toggle"><input type="radio" name="foam" id="rr201" checked data-testid="calc-rr201"> RR201 (2 lb)</label>
+        <label class="toggle"><input type="radio" name="foam" id="rr401" data-testid="calc-rr401"> RR401 (4 lb)</label>
+        <label class="toggle"><input type="checkbox" id="voidFill" data-testid="calc-void"> Void fill</label>
+      </div>
+      <div class="note small">Default foam factors (lb/yd³): RR201=100 (lift) / 70 (void), RR401=120 (lift) / 110 (void).</div>
+    </div>
+
+    <div class="row">
+      <label for="priceLow">Retail price per lb range (customer)</label>
+      <div class="grid">
+        <input id="priceLow" type="number" min="0" step="0.01" value="10" aria-label="Low price per lb" data-testid="calc-price-low">
+        <input id="priceHigh" type="number" min="0" step="0.01" value="15" aria-label="High price per lb" data-testid="calc-price-high">
+      </div>
+      <div class="note small">Midpoint is shown automatically.</div>
+    </div>
+
+    <div class="bar">
+      <button class="btn" id="btnEstimate">Estimate</button>
+
+      <!-- Show/Hide Pro settings toggle -->
+      <label class="toggle" id="proToggle">
+        <input type="checkbox" id="proVisible">
+        <span>Show Pro settings</span>
+      </label>
+    </div>
+
+    <div class="result" id="out">
+      <h2>Results</h2>
+      <div class="muted">Enter values to see estimates.</div>
+    </div>
+
+    <!-- Pro settings section, can be fully hidden -->
+    <div id="proWrapper" class="hidden">
+      <details id="proDetails">
+        <summary><strong>Pro settings</strong> — wedge multipliers & foam factors (persisted)</summary>
+        <div class="note small" style="margin-top:6px;">Adjust geometry multipliers for sides-settled and foam lb/yd³ factors. Saved in your browser.</div>
+
+        <h2>Geometry (sides-settled wedge multipliers)</h2>
+        <div class="grid-3">
+          <div>
+            <label for="k1">1 side multiplier</label>
+            <input id="k1" type="number" min="0" step="0.01" value="0.50">
+          </div>
+          <div>
+            <label for="k2">2 sides multiplier</label>
+            <input id="k2" type="number" min="0" step="0.01" value="0.25">
+          </div>
+          <div>
+            <label for="k3">3 (entire slab) multiplier</label>
+            <input id="k3" type="number" min="0" step="0.01" value="1.00">
+          </div>
+        </div>
+
+        <h2>Foam factors (lb/yd³)</h2>
+        <div class="grid-3">
+          <div>
+            <label for="f201">RR201 (lift)</label>
+            <input id="f201" type="number" min="0" step="1" value="100">
+          </div>
+          <div>
+            <label for="f401">RR401 (lift)</label>
+            <input id="f401" type="number" min="0" step="1" value="120">
+          </div>
+          <div>
+            <label for="f201v">RR201 (void fill)</label>
+            <input id="f201v" type="number" min="0" step="1" value="70">
+          </div>
+        </div>
+        <div class="grid">
+          <div>
+            <label for="f401v">RR401 (void fill)</label>
+            <input id="f401v" type="number" min="0" step="1" value="110">
+          </div>
+        </div>
+
+        <div class="bar">
+          <button class="btn" id="btnSave">Save settings</button>
+          <button class="btn" id="btnReset">Reset defaults</button>
+          <span class="small muted" id="saveMsg" aria-live="polite"></span>
+        </div>
+      </details>
+    </div>
+
+    <div class="note small" style="margin-top:10px;">
+      Method: ft³ = L × W × (depth_in/12) × wedge_k; yd³ = ft³ / 27; pounds = yd³ × foam_factor; price = pounds × $/lb.
+    </div>
+  </div>
+
+<script>
+(function(){
+  const out = document.getElementById('out');
+  const len = document.getElementById('len');
+  const wid = document.getElementById('wid');
+  const depth = document.getElementById('depth');
+  const sides = document.getElementById('sides');
+  const rr201 = document.getElementById('rr201');
+  const rr401 = document.getElementById('rr401');
+  const voidFill = document.getElementById('voidFill');
+  const priceLow = document.getElementById('priceLow');
+  const priceHigh = document.getElementById('priceHigh');
+  const btnEstimate = document.getElementById('btnEstimate');
+
+  // Pro visibility controls
+  const proToggle = document.getElementById('proToggle');
+  const proVisible = document.getElementById('proVisible');
+  const proWrapper = document.getElementById('proWrapper');
+
+  // Pro settings fields
+  const k1 = document.getElementById('k1');
+  const k2 = document.getElementById('k2');
+  const k3 = document.getElementById('k3');
+  const f201 = document.getElementById('f201');
+  const f401 = document.getElementById('f401');
+  const f201v = document.getElementById('f201v');
+  const f401v = document.getElementById('f401v');
+  const btnSave = document.getElementById('btnSave');
+  const btnReset = document.getElementById('btnReset');
+  const saveMsg = document.getElementById('saveMsg');
+
+  const STORE = "er_poly_estimator_v2";
+  const VIS_STORE = "er_poly_pro_visible_v1";
+
+  function num(v, d=0){ const n = parseFloat(v); return Number.isFinite(n) ? n : d; }
+  function fmt(n){ return Number.isFinite(n) ? n.toFixed(2) : '0.00'; }
+  function fmt0(n){ return Number.isFinite(n) ? n.toFixed(0) : '0'; }
+
+  function loadSettings(){
+    try{
+      const raw = localStorage.getItem(STORE);
+      if(!raw) return;
+      const s = JSON.parse(raw);
+      ['k1','k2','k3','f201','f401','f201v','f401v'].forEach(id => {
+        if (s[id] !== undefined) document.getElementById(id).value = s[id];
+      });
+    }catch(e){}
+  }
+  function saveSettings(){
+    const s = {
+      k1: num(k1.value, .5),
+      k2: num(k2.value, .25),
+      k3: num(k3.value, 1),
+      f201: num(f201.value, 100),
+      f401: num(f401.value, 120),
+      f201v: num(f201v.value, 70),
+      f401v: num(f401v.value, 110)
+    };
+    localStorage.setItem(STORE, JSON.stringify(s));
+  }
+  function resetDefaults(){
+    k1.value = 0.50; k2.value = 0.25; k3.value = 1.00;
+    f201.value = 100; f401.value = 120; f201v.value = 70; f401v.value = 110;
+  }
+  function currentWedge(sides){
+    if (sides === 1) return num(k1.value, .5);
+    if (sides === 2) return num(k2.value, .25);
+    return num(k3.value, 1);
+  }
+  function currentFoam(){
+    const lift = !voidFill.checked;
+    if (rr201.checked) return lift ? num(f201.value,100) : num(f201v.value,70);
+    if (rr401.checked) return lift ? num(f401.value,120) : num(f401v.value,110);
+    return 100;
+  }
+
+  function render(){
+    const L = num(len.value,0);
+    const W = num(wid.value,0);
+    const H_in = num(depth.value,0);
+    const S = parseInt(sides.value,10) || 3;
+    let low = num(priceLow.value,10);
+    let high = num(priceHigh.value,15);
+    if (low > high){ const t=low; low=high; high=t; }
+    const mid = (low+high)/2;
+
+    const k = currentWedge(S);
+    const ft3 = L * W * (H_in/12) * k;
+    const yd3 = ft3 / 27;
+    const lbs = yd3 * currentFoam();
+
+    const priceLowTotal = lbs * low;
+    const priceMidTotal = lbs * mid;
+    const priceHighTotal = lbs * high;
+
+    out.innerHTML = `
+      <h2>Results</h2>
+      <div class="grid">
+        <div class="pill"><div class="small muted">Volume</div><div><strong>${fmt(ft3)} ft³</strong> <span class="small muted">(${fmt(yd3)} yd³)</span></div></div>
+        <div class="pill"><div class="small muted">Foam required</div><div><strong>${fmt(lbs)} lb</strong></div></div>
+      </div>
+      <div class="grid" style="margin-top:10px;">
+        <div class="pill"><div class="small muted">Low ($${fmt(low)}/lb)</div><div><strong>$${fmt0(priceLowTotal)}</strong></div></div>
+        <div class="pill"><div class="small muted">Mid ($${fmt(mid)}/lb)</div><div><strong>$${fmt0(priceMidTotal)}</strong></div></div>
+        <div class="pill"><div class="small muted">High ($${fmt(high)}/lb)</div><div><strong>$${fmt0(priceHighTotal)}</strong></div></div>
+      </div>
+    `;
+  }
+
+  // Pro visibility persistence
+  function applyProVisibility(v){
+    proWrapper.classList.toggle('hidden', !v);
+    proVisible.checked = v;
+    localStorage.setItem(VIS_STORE, v ? '1' : '0');
+  }
+  function loadProVisibility(){
+    const raw = localStorage.getItem(VIS_STORE);
+    return raw === '1';
+  }
+
+  // Events
+  btnEstimate.addEventListener('click', render);
+  [len, wid, depth, sides, rr201, rr401, voidFill, priceLow, priceHigh, k1, k2, k3, f201, f401, f201v, f401v]
+    .forEach(el => el.addEventListener('input', render));
+
+  btnSave.addEventListener('click', () => { saveSettings(); saveMsg.textContent="Saved ✓"; setTimeout(()=>saveMsg.textContent="",1500); });
+  btnReset.addEventListener('click', () => { resetDefaults(); saveSettings(); render(); saveMsg.textContent="Reset ✓"; setTimeout(()=>saveMsg.textContent="",1500); });
+
+  proToggle.addEventListener('click', (e) => {
+    // Ensure clicking label toggles checkbox & visibility
+    if(e.target.tagName.toLowerCase() !== 'input'){
+      proVisible.checked = !proVisible.checked;
+    }
+    applyProVisibility(proVisible.checked);
+  });
+  proVisible.addEventListener('change', () => applyProVisibility(proVisible.checked));
+
+  // init
+  loadSettings();
+  applyProVisibility(loadProVisibility());
+  render();
+})();
+</script>
+</body>
+</html>
